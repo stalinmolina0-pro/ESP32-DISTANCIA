@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>ITVN Cloud Monitor Pro v2.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { background: #060b08; color: #00ff9d; font-family: 'Rajdhani', sans-serif; }
+        .cyber-panel { background: rgba(10, 20, 15, 0.9); border: 1px solid #00ff9d44; box-shadow: 0 0 20px #000; }
+        .val-display { font-family: 'Orbitron', sans-serif; color: #fff; }
+        canvas { background: #000; height: 60px; width: 100%; border-bottom: 2px solid #00ff9d; }
+        .hidden { display: none; }
+        .btn-action { transition: all 0.3s; border: 1px solid rgba(0,255,157,0.2); }
+        .btn-action:hover { transform: scale(1.02); box-shadow: 0 0 15px rgba(0,255,157,0.2); }
+    </style>
+</head>
+<body class="p-4">
+
+<div id="modalSetup" class="fixed inset-0 bg-black/95 z-50 flex items-center justify-center hidden">
+    <div class="cyber-panel p-8 rounded-2xl max-w-md w-full text-center border-green-500">
+        <h2 class="text-2xl font-bold mb-4 text-white">CONFIGURACIÓN RTDB</h2>
+        <input type="text" id="dbUrl" placeholder="https://tu-db.firebaseio.com" class="w-full bg-black border border-green-500 p-3 rounded mb-4 text-white">
+        <input type="text" id="dbKey" placeholder="API Key" class="w-full bg-black border border-green-500 p-3 rounded mb-6 text-white">
+        <button onclick="saveConfig()" class="w-full bg-green-500 text-black font-bold py-3 rounded hover:bg-white transition">VINCULAR SISTEMA</button>
+    </div>
+</div>
+
+<div class="max-w-6xl mx-auto">
+    <header class="flex justify-between items-center border-b border-green-500 pb-4 mb-6">
+        <div>
+            <h1 class="text-3xl font-bold val-display text-green-400">ITVN MONITOR PRO</h1>
+            <p id="statusModo" class="text-xs text-orange-400">ESTADO: INICIALIZANDO...</p>
+        </div>
+        <div id="adminTag" class="px-4 py-1 border border-green-500 rounded text-sm uppercase">Operador</div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="cyber-panel p-4 rounded-xl">
+                <div class="flex justify-between mb-2"><span class="text-xs">SENSOR 01</span><span id="t1" class="val-display">--.-</span></div>
+                <canvas id="c1"></canvas>
+            </div>
+            <div class="cyber-panel p-4 rounded-xl">
+                <div class="flex justify-between mb-2"><span class="text-xs">SENSOR 02</span><span id="t2" class="val-display">--.-</span></div>
+                <canvas id="c2"></canvas>
+            </div>
+            <div class="cyber-panel p-4 rounded-xl">
+                <div class="flex justify-between mb-2"><span class="text-xs">SENSOR 03</span><span id="t3" class="val-display">--.-</span></div>
+                <canvas id="c3"></canvas>
+            </div>
+            <div class="cyber-panel p-4 rounded-xl">
+                <div class="flex justify-between mb-2"><span class="text-xs">SENSOR 04</span><span id="t4" class="val-display">--.-</span></div>
+                <canvas id="c4"></canvas>
+            </div>
+            <div class="cyber-panel p-4 rounded-xl lg:col-span-2">
+                <div class="flex justify-between items-end mb-2">
+                    <span class="text-xl font-bold">PROMEDIO SISTEMA</span>
+                    <span id="prom" class="text-5xl val-display text-green-400">--.-</span>
+                </div>
+                <canvas id="cProm" style="height: 100px;"></canvas>
+            </div>
+        </div>
+
+        <div class="cyber-panel p-6 rounded-xl h-fit border-l-4 border-l-green-500">
+            <h3 class="text-white font-bold mb-4 border-b border-green-900 pb-2 flex items-center gap-2">
+                <span class="w-2 h-2 bg-red-500 animate-pulse rounded-full"></span> CONTROL ADMIN
+            </h3>
+            
+            <div id="loginArea">
+                <input type="password" id="pass" placeholder="PIN" class="w-full bg-black border border-green-900 p-2 rounded mb-2 text-center text-green-500">
+                <button onclick="login()" class="w-full bg-green-900/40 border border-green-500 py-2 rounded text-xs hover:bg-green-500 hover:text-black">DESBLOQUEAR</button>
+            </div>
+
+            <div id="controls" class="hidden space-y-6">
+                <div class="p-3 bg-black/50 rounded border border-white/5">
+                    <p class="text-[10px] text-green-500 mb-3 uppercase tracking-tighter">Canal 01: Relé Calor</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="cmd('R1_ON')" class="btn-action bg-green-600/20 text-green-400 py-2 rounded text-xs font-bold">ENCENDER</button>
+                        <button onclick="cmd('R1_OFF')" class="btn-action bg-red-600/20 text-red-400 py-2 rounded text-xs font-bold">APAGAR</button>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-black/50 rounded border border-white/5">
+                    <p class="text-[10px] text-blue-400 mb-3 uppercase tracking-tighter">Canal 02: Relé Frío</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="cmd('R2_ON')" class="btn-action bg-green-600/20 text-green-400 py-2 rounded text-xs font-bold">ENCENDER</button>
+                        <button onclick="cmd('R2_OFF')" class="btn-action bg-red-600/20 text-red-400 py-2 rounded text-xs font-bold">APAGAR</button>
+                    </div>
+                </div>
+
+                <button onclick="cmd('AUTO')" class="w-full bg-green-500 text-black py-3 rounded text-xs font-bold shadow-lg shadow-green-500/20">RESTAURAR MODO AUTO</button>
+                
+                <button onclick="location.reload()" class="w-full text-[10px] text-slate-500 mt-4 underline">CERRAR SESIÓN</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    let db;
+    const history = [[],[],[],[],[]];
+    const canvases = ["c1","c2","c3","c4","cProm"].map(id => document.getElementById(id));
+
+    window.onload = () => {
+        const url = localStorage.getItem('fb_url');
+        const key = localStorage.getItem('fb_key');
+        if(!url || !key) document.getElementById('modalSetup').classList.remove('hidden');
+        else startSystem(url, key);
+    };
+
+    window.saveConfig = () => {
+        const url = document.getElementById('dbUrl').value;
+        const key = document.getElementById('dbKey').value;
+        if(url && key) {
+            localStorage.setItem('fb_url', url);
+            localStorage.setItem('fb_key', key);
+            location.reload();
+        }
+    };
+
+    function startSystem(url, key) {
+        const app = initializeApp({ databaseURL: url, apiKey: key });
+        db = getDatabase(app);
+
+        onValue(ref(db, 'sistema_itvn'), (snap) => {
+            const d = snap.val();
+            if(!d) return;
+            
+            // Actualizar interfaz
+            if(d.t1 !== undefined) document.getElementById('t1').innerText = d.t1.toFixed(1) + "°";
+            if(d.t2 !== undefined) document.getElementById('t2').innerText = d.t2.toFixed(1) + "°";
+            if(d.t3 !== undefined) document.getElementById('t3').innerText = d.t3.toFixed(1) + "°";
+            if(d.t4 !== undefined) document.getElementById('t4').innerText = d.t4.toFixed(1) + "°";
+            if(d.prom !== undefined) document.getElementById('prom').innerText = d.prom.toFixed(1) + "°";
+            
+            document.getElementById('statusModo').innerText = "MODO ACTUAL: " + (d.modo || "---");
+            
+            // Dibujar gráficas
+            const vals = [d.t1, d.t2, d.t3, d.t4, d.prom];
+            vals.forEach((v, i) => { if(v !== undefined) draw(i, v); });
+        });
+    }
+
+    function draw(idx, val) {
+        const ctx = canvases[idx].getContext('2d');
+        history[idx].push(val);
+        if(history[idx].length > 40) history[idx].shift();
+        ctx.clearRect(0,0, canvases[idx].width, canvases[idx].height);
+        ctx.strokeStyle = (idx === 4) ? "#00ff9d" : "#00ff9d66";
+        ctx.lineWidth = (idx === 4) ? 3 : 1;
+        ctx.beginPath();
+        history[idx].forEach((v, i) => {
+            const x = i * (canvases[idx].width / 40);
+            const y = canvases[idx].height - (v * 1.5);
+            i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        });
+        ctx.stroke();
+    }
+
+    window.login = () => {
+        if(document.getElementById('pass').value === "1234") {
+            document.getElementById('loginArea').classList.add('hidden');
+            document.getElementById('controls').classList.remove('hidden');
+            document.getElementById('adminTag').className = "px-4 py-1 border border-orange-500 text-orange-400 rounded text-sm uppercase";
+            document.getElementById('adminTag').innerText = "Administrador";
+        }
+    };
+
+    window.cmd = (val) => { 
+        if(db) set(ref(db, 'sistema_itvn/comando'), val); 
+    };
+</script>
+</body>
+</html>
